@@ -26,9 +26,9 @@ from gl_classes import GLTextItem
 from StateDetectionMachine import *
 
 compileGui = 0
-# only when compiling
+# # only when compiling
 # if (compileGui):
-    # from fbs_runtime.application_context.PyQt5 import ApplicationContext
+#     from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
 
 class Window(QDialog):
@@ -47,11 +47,15 @@ class Window(QDialog):
         )
         self.setWindowTitle("人员状态检测")
 
-        if (0):  # set to 1 to save terminal output to logFile, set 0 to show terminal output
-            ts = time.localtime()
-            terminalFileName = str(
-                'logData/logfile_' + str(ts[2]) + str(ts[1]) + str(ts[0]) + '_' + str(ts[3]) + str(ts[4]) + '.txt')
-            sys.stdout = open(terminalFileName, 'w')
+        # if (0):  # set to 1 to save terminal output to logFile, set 0 to show terminal output
+        #     ts = time.localtime()
+        #     terminalFileName = str(
+        #         'logData/logfile_' + str(ts[2]) + str(ts[1]) + str(ts[0]) + '_' + str(ts[3]) + str(ts[4]) + '.txt')
+        #     sys.stdout = open(terminalFileName, 'w')
+
+        # 数据采集
+        self.dataType = 0
+        self.data2Type = {'跌倒' : 1, '站立' : 2, '坐下': 3, '行走' : 4}
 
 
 
@@ -109,7 +113,8 @@ class Window(QDialog):
             ('winter', {'ticks': [(1, (0, 255, 127, 255)), (0.0, (0, 0, 255, 255))], 'mode': 'rgb'}),
             ('spectrum2', {'ticks': [(1.0, (255, 0, 0, 255)), (0.0, (255, 0, 255, 255))], 'mode': 'hsv'}),
         ])
-        cmap = 'spectrum2'
+        # cmap = 'spectrum2'
+        cmap = "summer"
         if (cmap in self.Gradients):
             self.gradientMode = self.Gradients[cmap]
         self.zRange = [-3, 3]
@@ -207,6 +212,8 @@ class Window(QDialog):
             layoutDD.addWidget(self.pics[i], i, 2)
             layoutDD.addWidget(self.words[i], i, 3)
         self.stateData.setLayout(layoutDD)
+
+
     #
     # left side pane layout
     #
@@ -620,11 +627,42 @@ class Window(QDialog):
         self.heightLayout.addWidget(self.dHPlot)
         self.hPlot.setLayout(self.heightLayout)
 
+    def dataBtnClicked(self, btn):
+        type_text = self.typeCombox.currentText()
+        if btn.isChecked():
+            if type_text != '请选择':
+                print('开始采集', type_text, '数据')
+                self.dataType = self.data2Type[type_text]
+                btn.setText('停止')
+            else:
+                print("请选择要采集的数据类型")
+                btn.toggle()
+        elif not btn.isChecked():
+            btn.setText('开始')
+            print('停止采集', type_text, '数据')
+            self.dataType = 0
+
+
+
     def fallDetData(self):
         self.demoData = QGroupBox('数据区')
         self.demoName = QLabel('状态检测Demo')
         self.numDetPeople = QLabel('区域人数: 0')
         self.fallDetEnabled = QLabel('Fall Detection Disabled - No People Detected')
+
+
+        # 数据采集
+        self.dataAcquisitionButton = QPushButton("开始")
+        self.dataAcquisitionButton.setCheckable(True)
+        self.dataAcquisitionButton.clicked.connect(lambda : self.dataBtnClicked(self.dataAcquisitionButton))
+
+        self.typeCombox = QComboBox()
+        self.typeCombox.addItem("请选择")
+        self.typeCombox.addItem("跌倒")
+        self.typeCombox.addItem("站立")
+        self.typeCombox.addItem("坐下")
+        self.typeCombox.addItem("行走")
+
         # self.fallAlert = QLabel('站')
         # self.font = QFont()                          ·
         # self.font.setFamily("Helvetica")
@@ -634,8 +672,10 @@ class Window(QDialog):
         # self.fallPic = QLabel()
         # self.fallPic.setPixmap(self.standingPicture)
         layoutDD = QGridLayout()
-        layoutDD.addWidget(self.demoName, 1, 1)
-        layoutDD.addWidget(self.numDetPeople, 2, 1)
+        layoutDD.addWidget(self.demoName, 1, 0)
+        layoutDD.addWidget(self.numDetPeople, 2, 0)
+        layoutDD.addWidget(self.typeCombox, 3, 0)
+        layoutDD.addWidget(self.dataAcquisitionButton, 3, 1)
         # layoutDD.addWidget(self.fallDetEnabled, 3, 1)
         # layoutDD.addWidget(self.fallAlert, 1, 2)
         # layoutDD.addWidget(self.fallPic, 2, 2)
