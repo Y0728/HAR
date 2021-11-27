@@ -159,62 +159,62 @@ class StateDetectionMachine(StateMachine):
         if cnt_xoy_delta_less_threshold > 5:
             return True
         return False
-
-    def on_sit2fall(self):
-        self.sit2fall_cnt += 1
-        print("sit -> fall triggered")
-
-    def on_stand2fall(self):
-        self.stand2fall_cnt += 1
-        print("stand -> fall triggered!")
-
-    def on_fall2stand(self):
-        self.fall2stand_cnt += 1
-        print("fall -> stand triggered!")
-
-    def on_stand2sit(self):
-        self.stand2sit_cnt += 1
-        print("stand -> sit triggered!")
-
-    def on_sit2stand(self):
-        self.sit2stand_cnt += 1
-        print("sit -> stand triggered!")
+    #
+    # def on_sit2fall(self):
+    #     self.sit2fall_cnt += 1
+    #     print("sit -> fall triggered")
+    #
+    # def on_stand2fall(self):
+    #     self.stand2fall_cnt += 1
+    #     print("stand -> fall triggered!")
+    #
+    # def on_fall2stand(self):
+    #     self.fall2stand_cnt += 1
+    #     print("fall -> stand triggered!")
+    #
+    # def on_stand2sit(self):
+    #     self.stand2sit_cnt += 1
+    #     print("stand -> sit triggered!")
+    #
+    # def on_sit2stand(self):
+    #     self.sit2stand_cnt += 1
+    #     print("sit -> stand triggered!")
 
     def process(self, frame_id, target_id):
         if len(self.data) < 10:
             return
         if self.is_stand:
             if self.check_stand2fall():
-                print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
+               # print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
                 self.stand2fall()
             elif self.check_stand2sit():
-                print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
+                #print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
                 self.stand2sit()
             elif self.check_stand2walk():
-                print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
+                #print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
                 self.stand2walk()
         elif self.is_walk:
             if self.check_stand2fall():
-                print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
+                #print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
                 self.walk2fall()
             elif self.check_stand2sit():
-                print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
+                #print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
                 self.walk2sit()
             elif self.check_walk2stand():
-                print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
+                #print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
                 self.walk2stand()
         elif self.is_run:
             pass
         elif self.is_fall:
             if self.check_fall2stand():
-                print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
+               # print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
                 self.fall2stand()
         elif self.is_sit:
             if self.check_sit2stand():
-                print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
+                #print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
                 self.sit2stand()
             elif self.check_sit2fall():
-                print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
+                #print("frame-" + str(frame_id) + "," + "target-" + str(target_id) + " : ", end="")
                 self.sit2fall()
 
 

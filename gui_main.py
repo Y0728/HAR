@@ -750,8 +750,10 @@ class Window(QDialog):
         self.parseTimer.setSingleShot(False)
         self.parseTimer.timeout.connect(self.parseData)        
         try:
-            uart = "COM"+ self.uartCom.text()       #deb_gp
-            data = "COM"+ self.dataCom.text()       #deb_gp
+            uart = self.uartCom.text()  # deb_gp
+            data = self.dataCom.text()  # deb_gp
+            # uart = "COM"+ self.uartCom.text()       #deb_gp
+            # data = "COM"+ self.dataCom.text()       #deb_gp
 #TODO: find the serial ports automatically.
             self.parser.connectComPorts(uart, data)
             self.connectStatus.setText('Connected')     #deb_gp
@@ -776,8 +778,9 @@ class Window(QDialog):
     def selectFile(self):
         #search for latest mmwave toolbox
         largest = -1
-        
-        root = "C:/ti/"
+
+        root = "/Users/jieyan/Documents/TI/"
+        # root = "C:/ti/"
         iwrTools = "mmwave_industrial_toolbox"
         dirs = os.listdir(root)
         
