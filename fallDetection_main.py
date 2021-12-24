@@ -61,7 +61,7 @@ class Window(QDialog):
 
         # 数据采集
         self.dataType = 0
-        self.data2Type = {'fall': 1, 'stand': 2, 'sit': 3, 'walk': 4}
+        self.data2Type = {'walk': 1, 'run': 2, 'sit': 3, 'fall': 4, 'stand':5, 'squat':6,'bend':7, 'jump':8, 'lie_down':9}
         self.dataISCollecting = False
         # 目标数据
         self.targetInfoPersistent = None
@@ -701,10 +701,16 @@ class Window(QDialog):
 
         self.typeCombox = QComboBox()
         self.typeCombox.addItem("Please choose")
+        self.typeCombox.addItem("walk")
+        self.typeCombox.addItem("run")
+        self.typeCombox.addItem("sit")
         self.typeCombox.addItem("fall")
         self.typeCombox.addItem("stand")
-        self.typeCombox.addItem("sit")
-        self.typeCombox.addItem("walk")
+        self.typeCombox.addItem("squat")
+        self.typeCombox.addItem("bend")
+        self.typeCombox.addItem("jump")
+        self.typeCombox.addItem("lie_down")
+
 
         # self.fallAlert = QLabel('站')
         # self.font = QFont()                          ·
