@@ -9,7 +9,6 @@ from PyQt5.QtGui import QPixmap
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from pyqtgraph.pgcollections import OrderedDict
-import pandas as pd
 
 import random
 import numpy as np
@@ -23,18 +22,10 @@ from gui_threads import *
 from graphUtilities import *
 from gl_classes import GLTextItem
 
-# 状态机
-from StateDetectionMachine import *
-
 compileGui = 0
-
-# 此处填写被测人的姓名
-name = 'zxl'
-
-
-# # only when compiling
-# if (compileGui):
-#     from fbs_runtime.application_context.PyQt5 import ApplicationContext
+# only when compiling
+if (compileGui):
+    from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
 
 class Window(QDialog):
@@ -51,41 +42,16 @@ class Window(QDialog):
             Qt.WindowMaximizeButtonHint |
             Qt.WindowCloseButtonHint
         )
-        self.setWindowTitle("人员状态检测")
+        self.setWindowTitle("mmWave People Counting")
 
-        # if (0):  # set to 1 to save terminal output to logFile, set 0 to show terminal output
-        #     ts = time.localtime()
-        #     terminalFileName = str(
-        #         'logData/logfile_' + str(ts[2]) + str(ts[1]) + str(ts[0]) + '_' + str(ts[3]) + str(ts[4]) + '.txt')
-        #     sys.stdout = open(terminalFileName, 'w')
-
-        # 数据采集
-        self.dataType = 0
-        self.data2Type = {'fall': 1, 'stand': 2, 'sit': 3, 'walk': 4}
-        self.dataISCollecting = False
-        # 目标数据
-        self.targetInfoPersistent = None
-        # 点云数据
-        self.pointInfoPersistent = None
-        # 区域人数
-        self.dataPersistentPersonNum = 0
-
+        if (1):  # set to 1 to save terminal output to logFile, set 0 to show terminal output
+            ts = time.localtime()
+            terminalFileName = str(
+                'logData/logfile_' + str(ts[2]) + str(ts[1]) + str(ts[0]) + '_' + str(ts[3]) + str(ts[4]) + '.txt')
+            sys.stdout = open(terminalFileName, 'w')
 
         print('Python is ', struct.calcsize("P") * 8, ' bit')
         print('Python version: ', sys.version_info)
-
-        # StateData area
-        self.target_id_2_idx_of_area = {}
-        self.area2token = [-1, -1, -1, -1, -1]
-
-        self.font = QFont()
-        self.font.setFamily("Helvetica")
-        self.font.setPixelSize(30)
-
-        # self.boldfont = QFont()
-        # self.boldfont.setFamily("Helvetica")
-        # self.boldfont.setPixelSize(50)
-        # self.boldfont.setBold(True)
 
         self.frameTime = 50
         self.graphFin = 1
@@ -98,7 +64,7 @@ class Window(QDialog):
         self.profile = {'startFreq': 60.25, 'numLoops': 64, 'numTx': 3, 'sensorHeight': 3, 'maxRange': 10, 'az_tilt': 0,
                         'elev_tilt': 0}
         self.lastFrameHadTargets = False
-        self.sensorHeight = 2
+        self.sensorHeight = 1.5
         self.numFrameAvg = 20
         self.configSent = 0
         self.previousFirstZ = -1
@@ -125,8 +91,7 @@ class Window(QDialog):
             ('winter', {'ticks': [(1, (0, 255, 127, 255)), (0.0, (0, 0, 255, 255))], 'mode': 'rgb'}),
             ('spectrum2', {'ticks': [(1.0, (255, 0, 0, 255)), (0.0, (255, 0, 255, 255))], 'mode': 'hsv'}),
         ])
-        # cmap = 'spectrum2'
-        cmap = "summer"
+        cmap = 'spectrum2'
         if (cmap in self.Gradients):
             self.gradientMode = self.Gradients[cmap]
         self.zRange = [-3, 3]
@@ -145,9 +110,6 @@ class Window(QDialog):
         # images
         self.standingPicture = QPixmap('images/stickFigureStanding.png')
         self.fallingPicture = QPixmap('images/stickFigureFalling.png')
-        self.sittingPicture = QPixmap('images/stickFigureSitting.png')
-        self.walkingPicture = QPixmap('images/stickFigureWalking.png')
-        self.blankPicture = QPixmap('images/stickFigureBlank.png')
         # remove points outside boundary box
         self.bbox = [-1000, 1000, -1000, 1000, -1000, 1000]
 
@@ -156,7 +118,6 @@ class Window(QDialog):
         self.colorGradient()
         self.heightPlots()
         self.fallDetData()
-        self.stateDataInit()
         # self.plot2DQTGraph()
 
         # add connect options
@@ -184,49 +145,11 @@ class Window(QDialog):
         gridlay.addWidget(self.spBox, 5, 0, 1, 1)
         gridlay.addWidget(self.graphTabs, 0, 1, 6, 1)
         gridlay.addWidget(self.gw, 0, 2, 6, 1)
-        gridlay.addWidget(self.demoData, 0, 3, 1, 3)
-        gridlay.addWidget(self.stateData, 1, 3, 5, 3)
-        # gridlay.addWidget(self.hPlot, 1, 3, 4, 2)
+        gridlay.addWidget(self.demoData, 0, 3, 1, 2)
+        gridlay.addWidget(self.hPlot, 1, 3, 4, 2)
         gridlay.setColumnStretch(0, 1)
         gridlay.setColumnStretch(1, 3)
         self.setLayout(gridlay)
-
-        # 状态机
-        self.machines = {}
-        self.date = time.strftime('%Y_%m_%d', time.localtime())
-        self.saveDir = os.path.join("../har_data", self.typeCombox.currentText(),self.date, "raw")
-        if not os.path.exists(self.saveDir):
-            os.makedirs(self.saveDir)
-
-    def stateDataInit(self):
-        self.stateData = QGroupBox('状态信息')
-        layoutDD = QGridLayout()
-
-        self.pics = []
-        for i in range(0, 4):
-            x = QLabel()
-            x.setPixmap(self.blankPicture)
-            self.pics.append(x)
-
-        self.words = []
-        for i in range(0, 4):
-            x = QLabel()
-            x.setFont(self.font)
-            x.setText("     ")
-            self.words.append(x)
-
-        self.twords = []
-        for i in range(0, 4):
-            x = QLabel()
-            x.setFont(self.font)
-            x.setText("     ")
-            self.twords.append(x)
-
-        for i in range(0, 4):
-            layoutDD.addWidget(self.twords[i], i, 1)
-            layoutDD.addWidget(self.pics[i], i, 2)
-            layoutDD.addWidget(self.words[i], i, 3)
-        self.stateData.setLayout(layoutDD)
 
     #
     # left side pane layout
@@ -483,7 +406,7 @@ class Window(QDialog):
     #        if(box['checkEnable'].isChecked()):
     #            numBoxes += 1
     #    boundaryString = "boundaryBox "
-    #    staticString = "staticBoundaryBox " 
+    #    staticString = "staticBoundaryBox "
     #    flip = 1;
     #    for box in self.boundaryBoxes:
     #        if(box['checkEnable'].isChecked()):
@@ -641,88 +564,20 @@ class Window(QDialog):
         self.heightLayout.addWidget(self.dHPlot)
         self.hPlot.setLayout(self.heightLayout)
 
-    def dataBtnClicked(self, btn):
-        if btn.isChecked() and self.dataPersistentPersonNum != 1:
-            print("区域里的人数为", self.dataPersistentPersonNum, ",不是1个！")
-            btn.toggle()
-            return
-        type_text = self.typeCombox.currentText()
-        if btn.isChecked():
-            if type_text != '请选择':
-                print('===========================================')
-                print('开始采集', type_text, '数据')
-                self.dataISCollecting = True
-                targetColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'vx', 'vy', 'vz', 'ax',
-                                        'ay', 'az', 'pointNum']
-                # TODO
-                pointColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'doppler', 'snr', 'range', 'azimuth', 'elevation']
-                self.targetInfoPersistent = pd.DataFrame(columns=targetColsPersistent)
-                self.pointInfoPersistent = pd.DataFrame(columns=pointColsPersistent)
-                self.dataType = self.data2Type[type_text]
-                btn.setText('停止')
-            else:
-                print("请选择要采集的数据类型")
-                btn.toggle()
-        elif not btn.isChecked():
-            # TODO
-            print('停止采集', type_text, '数据')
-            # print(
-            timestr = time.strftime('_%Y-%m-%d-%H-%M-%S_', time.localtime())
-            #     '数据采集完毕,共35帧数据，标签为-跌倒\n2021-11-02-16.12-曾宪林-fall-point-35.csv\n2021-11-02-16.12-曾宪林-fall-target-35.csv')
-            commonFileName = name+ '_'+type_text+'_'+timestr+str(len(self.targetInfoPersistent))
-            targetDataPath = os.path.join(self.saveDir, commonFileName+'_target.csv')
-            pointDataPath = os.path.join(self.saveDir, commonFileName+'_point.csv')
-
-            self.targetInfoPersistent.to_csv(
-                targetDataPath,
-                index=0, header=1)
-            self.pointInfoPersistent.to_csv(
-                pointDataPath,
-                index=0, header=1)
-            print('数据采集完毕,共', len(self.targetInfoPersistent), '帧数据，标签为-', type_text)
-            self.targetInfoPersistent = None
-            self.pointInfoPersistent = None
-            self.dataISCollecting = False
-            btn.setText('开始')
-            print('===========================================')
-            self.dataType = 0
-
     def fallDetData(self):
-        self.demoData = QGroupBox('数据区')
-        self.demoName = QLabel('状态检测Demo')
-        self.numDetPeople = QLabel('区域人数: 0')
+        self.demoData = QGroupBox('Data')
+        self.demoName = QLabel('Fall Detection Demo')
+        self.numDetPeople = QLabel('Number of Detected People')
         self.fallDetEnabled = QLabel('Fall Detection Disabled - No People Detected')
-
-        # 数据采集
-        self.dataAcquisitionLabel = QLabel('数据采集：')
-        self.dataAcquisitionButton = QPushButton("开始")
-        self.dataAcquisitionButton.setCheckable(True)
-        self.dataAcquisitionButton.clicked.connect(lambda: self.dataBtnClicked(self.dataAcquisitionButton))
-
-        self.typeCombox = QComboBox()
-        self.typeCombox.addItem("Please choose")
-        self.typeCombox.addItem("fall")
-        self.typeCombox.addItem("stand")
-        self.typeCombox.addItem("sit")
-        self.typeCombox.addItem("walk")
-
-        # self.fallAlert = QLabel('站')
-        # self.font = QFont()                          ·
-        # self.font.setFamily("Helvetica")
-        # self.font.setPixelSize(50)
-        # self.font.setBold(True)
-        # self.fallAlert.setFont(self.font)
-        # self.fallPic = QLabel()
-        # self.fallPic.setPixmap(self.standingPicture)
+        self.fallAlert = QLabel('Standing')
+        self.fallPic = QLabel()
+        self.fallPic.setPixmap(self.standingPicture)
         layoutDD = QGridLayout()
-        layoutDD.addWidget(self.demoName, 1, 0)
-        layoutDD.addWidget(self.numDetPeople, 2, 0)
-        layoutDD.addWidget(self.dataAcquisitionLabel)
-        layoutDD.addWidget(self.typeCombox, 3, 1)
-        layoutDD.addWidget(self.dataAcquisitionButton, 3, 2)
-        # layoutDD.addWidget(self.fallDetEnabled, 3, 1)
-        # layoutDD.addWidget(self.fallAlert, 1, 2)
-        # layoutDD.addWidget(self.fallPic, 2, 2)
+        layoutDD.addWidget(self.demoName, 1, 1)
+        layoutDD.addWidget(self.numDetPeople, 2, 1)
+        layoutDD.addWidget(self.fallDetEnabled, 3, 1)
+        layoutDD.addWidget(self.fallAlert, 1, 2)
+        layoutDD.addWidget(self.fallPic, 2, 2)
         self.demoData.setLayout(layoutDD)
 
     def plot3DQTGraph(self):
@@ -794,7 +649,8 @@ class Window(QDialog):
     def updateGraph(self, parsedData):
         updateStart = int(round(time.time() * 1000))
         self.useFilter = 0
-        pointCloud = parsedData[0]   #parsedData 是5*N的吗？ 5包含 range, azimuth, elevation, doppler, snr
+        classifierOutput = []
+        pointCloud = parsedData[0]
         targets = parsedData[1]
         indexes = parsedData[2]
         numPoints = parsedData[3]
@@ -802,7 +658,6 @@ class Window(QDialog):
         self.frameNum = parsedData[5]
         fail = parsedData[6]
         classifierOutput = parsedData[7]
-
         # print("indexes: ", indexes)
         fallDetEn = 0
         indicesIn = []
@@ -829,23 +684,21 @@ class Window(QDialog):
             pointCloud[0, i] = rotPointDataX
             pointCloud[1, i] = rotPointDataY
             pointCloud[2, i] = rotPointDataZ
-            # print(pointCloud.shape, " ", numPoints)
         if (fail != 1):
             # left side
             pointstr = 'Points: ' + str(numPoints)
             targetstr = 'Targets: ' + str(numTargets)
             self.numPointsDisplay.setText(pointstr)
             self.numTargetsDisplay.setText(targetstr)
-            self.dataPersistentPersonNum = numTargets
             # right side fall detection
-            peopleStr = '区域人数: ' + str(numTargets)
+            peopleStr = 'Number of Detected People: ' + str(numTargets)
             if (numTargets == 0):
-                fdestr = 'State Detection Disabled - No People Detected'
+                fdestr = 'Fall Detection Disabled - No People Detected'
             elif (numTargets == 1):
-                fdestr = 'State Detection Enabled'
+                fdestr = 'Fall Detection Enabled'
                 fallDetEn = 1
             elif (numTargets > 1):
-                fdestr = 'State Detected Disabled - Too Many People'
+                fdestr = 'Fall Detected Disabled - Too Many People'
             self.numDetPeople.setText(peopleStr)
             self.fallDetEnabled.setText(fdestr)
         if (len(targets) < 13):
@@ -877,10 +730,7 @@ class Window(QDialog):
         fNum = self.frameNum % 10
         if (numPoints):
             self.previousCloud[:5, :numPoints, fNum] = pointCloud[:5, :numPoints]
-            self.previousCloud[5, :len(indexes), fNum] = indexes   # 这个indexes对应的是上一帧的 points 也就是说numPoints != len(indexes)  # ori
-            # print("!!!!!! previousCloud.size:", self.previousPointCount.size)
-            # print("!!!!! numPoints:", numPoints)
-            # print("!!!!! len(indexes): ", len(indexes))   # 如果targetNum = 0的话，len(indexes) = 0
+            self.previousCloud[5, :len(indexes), fNum] = indexes
         self.previousPointCount[fNum] = numPoints
         # plotting 3D - get correct point cloud (persistent points and synchronize the frame)
         if (self.configType.currentText() == 'SDK3xPeopleCount'):
@@ -899,7 +749,7 @@ class Window(QDialog):
                 prevCount = int(self.previousPointCount[fNum - i])
                 pointIn[:, totalPoints:totalPoints + prevCount] = self.previousCloud[:5, :prevCount, fNum - i]
                 if (numTargets > 0):
-                    indicesIn[0, totalPoints:totalPoints + prevCount] = self.previousCloud[5, :prevCount, fNum - i]  # ori
+                    indicesIn[0, totalPoints:totalPoints + prevCount] = self.previousCloud[5, :prevCount, fNum - i]
                 totalPoints += prevCount
         if (self.graphFin):
             self.plotstart = int(round(time.time() * 1000))
@@ -929,109 +779,12 @@ class Window(QDialog):
         # height plotting - only if 3D plot is good to go
         # first loop is instantaneous absolute height, relative height, length, and width
         if (self.configType.currentText() == '3D People Counting'):
-            # pointIn = self.previousCloud[:, :int(self.previousPointCount[fNum - 1]), fNum - 1]   # ori
             pointIn = self.previousCloud[:, :int(self.previousPointCount[fNum - 1]), fNum - 1]
         elif (self.configType.currentText() == 'Long Range People Detection'):
             pointIn = self.previousCloud[:, :int(self.previousPointCount[fNum]), fNum]
         fNum = self.frameNum % 100
-
-        # 数据采集
-        if numTargets == 1 and self.dataISCollecting == True and self.dataPersistentPersonNum == 1 \
-                and self.targetInfoPersistent is not None and self.pointInfoPersistent is not None:
-            # 目标数据追加
-            if len(indexes) != 0 and len(self.targetInfoPersistent) != 0:
-                self.targetInfoPersistent.loc[self.targetInfoPersistent.index[-1], 'pointNum'] = indexes.count(self.targetInfoPersistent.loc[self.targetInfoPersistent.index[-1], 'target_id'])
-
-            targetColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'vx', 'vy', 'vz', 'ax', 'ay',
-                                    'az', 'pointNum']
-            # line = [self.frameNum, int(targets[0, 0]), targets[1, 0], targets[2, 0], targets[3, 0] + self.sensorHeight,
-            #         targets[4, 0], targets[5, 0], targets[6, 0],
-            #         targets[7, 0], targets[8, 0], targets[9, 0]]
-            # 添加 pointNum 属性
-            line = [self.frameNum, int(targets[0, 0]), targets[1, 0], targets[2, 0], targets[3, 0] + self.sensorHeight,
-                    targets[4, 0], targets[5, 0], targets[6, 0],
-                    targets[7, 0], targets[8, 0], targets[9, 0], None]
-
-            pd_line = pd.DataFrame(data=[line, ], columns=targetColsPersistent)
-            self.targetInfoPersistent = self.targetInfoPersistent.append(pd_line).reset_index(drop=True)
-
-            # 点云数据追加
-            # 将上一帧点云的target_id补上
-            if len(indexes) != 0 and len(self.pointInfoPersistent) != 0:
-                self.pointInfoPersistent.loc[self.pointInfoPersistent.index[-len(indexes)]:, 'target_id'] = indexes
-
-            for i in range(numPoints):
-                # pointColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'doppler', 'snr']
-                pointColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'doppler', 'snr', 'range', 'azimuth', 'elevation']
-                # line = [self.frameNum, int(targets[0, 0]), pointCloud[0, i], pointCloud[1, i], pointCloud[2, i],
-                #         pointCloud[3, i],
-                #         pointCloud[4, i]]
-
-                # 点对应的 target_id （indexes）要到下一帧才知道
-                # line = [self.frameNum, None, pointCloud[0, i], pointCloud[1, i], pointCloud[2, i],
-                #         pointCloud[3, i],
-                #         pointCloud[4, i]]
-                line = [self.frameNum, None, pointCloud[0, i], pointCloud[1, i], pointCloud[2, i],
-                        pointCloud[3, i],pointCloud[4, i], pointCloud[5,i],pointCloud[6,i],pointCloud[7,i]]
-                pd_line = pd.DataFrame(data=[line, ], columns=pointColsPersistent)
-                self.pointInfoPersistent = self.pointInfoPersistent.append(pd_line).reset_index(drop=True)
-
-        # area回收，
-        tids = []
         for t in range(numTargets):
-            tids.append(int(targets[0, t]))
-        for i in range(0, 4):
-            who = self.area2token[i]
-            if who not in tids and who != -1:
-                self.area2token[i] = -1
-                del self.target_id_2_idx_of_area[who]
-                self.words[i].setText("    ")
-                self.pics[i].setPixmap(self.blankPicture)
-                self.twords[i].setText("     ")
-
-        for t in range(numTargets):
-            # 状态机 和 area的分配
-            tid = int(targets[0, t])
-            if tid in self.machines:
-                machine = self.machines[tid]
-            else:
-                machine = StateDetectionMachine()
-                self.machines[tid] = machine
-
-            # 如果没有给他分配area,则分配
-            if tid not in self.target_id_2_idx_of_area:
-                for i in range(0, 4):
-                    if self.area2token[i] == -1:
-                        self.area2token[i] = tid
-                        self.target_id_2_idx_of_area[tid] = i
-                        break
-
-            # 状态机数据格式 to do
-            # print(targets[0, t], ":", targets[3, t] + self.sensorHeight)
-            line = [self.frameNum, targets[0, t], targets[1, t], targets[2, t], targets[3, t] + self.sensorHeight,
-                    targets[4, t], targets[5, t], targets[6, t],
-                    targets[7, t], targets[8, t], targets[9, t], 0]
-            pd_line = pd.DataFrame(data=[line, ], columns=target_cols)
-            machine.insert_data(pd_line)
-            machine.process(self.frameNum, tid)
-            my_area_id = self.target_id_2_idx_of_area[tid]
-            if machine.is_stand:
-                self.words[my_area_id].setText("stand")
-                self.pics[my_area_id].setPixmap(self.standingPicture)
-                self.twords[my_area_id].setText("目标" + str(tid))
-            elif machine.is_fall:
-                self.words[my_area_id].setText("fall")
-                self.pics[my_area_id].setPixmap(self.fallingPicture)
-                self.twords[my_area_id].setText("目标" + str(tid))
-            elif machine.is_sit:
-                self.words[my_area_id].setText("sit")
-                self.pics[my_area_id].setPixmap(self.sittingPicture)
-                self.twords[my_area_id].setText("目标" + str(tid))
-            elif machine.is_walk:
-                self.words[my_area_id].setText("walk")
-                self.pics[my_area_id].setPixmap(self.walkingPicture)
-                self.twords[my_area_id].setText("目标" + str(tid))
-
+            tid = int(targets[t, 0])
             # print("TID: ", tid)
             tIndices = np.where(np.array(indexes) == tid)
             # print("Indexex: ", np.size(indexes)," , pointIn: ",  np.size(pointIn,1))
@@ -1051,17 +804,16 @@ class Window(QDialog):
                     # c = a + b
                     # print('a: ',a,' b: ', b,' c: ',c)
                     self.targetSize[5, tid, fNum] = (1 / self.numFrameAvg * self.targetSize[0, tid, fNum]) + (
-                            (self.numFrameAvg - 1) / self.numFrameAvg) * self.targetSize[
+                                (self.numFrameAvg - 1) / self.numFrameAvg) * self.targetSize[
                                                         5, tid, (fNum - 1) % 100]  # avg height over 10 frames
                     # need 2 seconds to get accurate height
-                    if age > 40:
+                    if (age > 40):
                         self.targetSize[6, tid, fNum] = self.targetSize[5, tid, fNum] - self.targetSize[
                             5, tid, (fNum - 10) % 100]  # delta height after 10 frames
-                        # 禁用自带跌倒检测
-                        if self.targetSize[6, tid, fNum] < self.fallThresh and fallDetEn and False:
+                        if (self.targetSize[6, tid, fNum] < self.fallThresh and fallDetEn):
                             self.fallAlert.setText('Fallen!')
                             self.fallPic.setPixmap(self.fallingPicture)
-                            if self.fallResetTimerOn == 0:
+                            if (self.fallResetTimerOn == 0):
                                 self.fallResetTimerOn = 1
                                 self.fallTimer.start(5000)  # 5 second timer
                     else:
@@ -1090,7 +842,7 @@ class Window(QDialog):
         else:
             self.lastTID = []
         # update height plot
-        if self.hGraphFin and False:
+        if (self.hGraphFin):
             self.hGraphFin = 0
             self.heightThread = updateHeightGraphs(self.targetSize, self.heightPlots, self.frameNum, self.lastTID)
             self.heightThread.done.connect(self.heightGraphDone)
@@ -1102,7 +854,7 @@ class Window(QDialog):
         try:
             if (self.frameNum > 1):
                 self.averagePlot = (plotime * 1 / self.frameNum) + (
-                        self.averagePlot * (self.frameNum - 1) / (self.frameNum))
+                            self.averagePlot * (self.frameNum - 1) / (self.frameNum))
             else:
                 self.averagePlot = plotime
         except:
@@ -1127,7 +879,7 @@ class Window(QDialog):
             self.heightPlots['deriv'].setData(x, dH)
 
     def resetFallText(self):
-        self.fallAlert.setText("站")
+        self.fallAlert.setText('Standing')
         self.fallPic.setPixmap(self.standingPicture)
         self.fallResetTimerOn = 0
 
@@ -1153,10 +905,10 @@ class Window(QDialog):
         self.parseTimer.setSingleShot(False)
         self.parseTimer.timeout.connect(self.parseData)
         try:
-            # uart = "COM" + self.uartCom.text()  # deb_gp
-            # data = "COM" + self.dataCom.text()  # deb_gp
-            uart = "/dev/tty.SLAB_USBtoUART"+self.uartCom.text()  # deb_gp
-            data = "/dev/tty.SLAB_USBtoUART"+self.dataCom.text()  # deb_gp
+            uart = self.uartCom.text()  # deb_gp
+            data = self.dataCom.text()  # deb_gp
+            # uart = "COM"+ self.uartCom.text()       #deb_gp
+            # data = "COM"+ self.dataCom.text()       #deb_gp
             # TODO: find the serial ports automatically.
             self.parser.connectComPorts(uart, data)
             self.connectStatus.setText('Connected')  # deb_gp
@@ -1183,8 +935,7 @@ class Window(QDialog):
     def selectFile(self):
         # search for latest mmwave toolbox
         largest = -1
-        # root = "C:/ti/"
-        root = "/Users/jieyan/Documents/TI/"
+        root = "C:/ti/"
         iwrTools = "mmwave_industrial_toolbox"
         dirs = os.listdir(root)
         for name in dirs:
@@ -1198,8 +949,7 @@ class Window(QDialog):
                         toolbox = name
         # user may not have correct directory, or OS scan may not find it
         try:
-            # to do
-            configDirectory = root + toolbox + "/labs/people_counting/visualizer/chirp_configs/3D_People_Counting/"
+            configDirectory = root + toolbox + "/labs/people_counting/visualizer/chirp_configs/"
         except:
             configDirectory = root
 
@@ -1306,32 +1056,16 @@ class Window(QDialog):
         print('3d: ', self.threeD)
 
 
-class TargetInfo:
-    def __init__(self):
-        self.frame_id = 0
-        self.id = 0
-        self.x = 0
-        self.y = 0
-        self.z = 0
-        self.vx = 0
-        self.vy = 0
-        self.vz = 0
-        self.ax = 0
-        self.ay = 0
-        self.az = 0
-
-
 if __name__ == '__main__':
     if (compileGui):
-        pass
-        # appctxt = ApplicationContext()
-        # app = QApplication(sys.argv)
-        # screen = app.primaryScreen()
-        # size = screen.size()
-        # main = Window(size=size)
-        # main.show()
-        # exit_code = appctxt.app.exec_()
-        # sys.exit(exit_code)
+        appctxt = ApplicationContext()
+        app = QApplication(sys.argv)
+        screen = app.primaryScreen()
+        size = screen.size()
+        main = Window(size=size)
+        main.show()
+        exit_code = appctxt.app.exec_()
+        sys.exit(exit_code)
     else:
         app = QApplication(sys.argv)
         screen = app.primaryScreen()

@@ -29,7 +29,7 @@ from StateDetectionMachine import *
 compileGui = 0
 
 # 此处填写被测人的姓名
-name = 'zxl'
+name = 'ivan'
 
 
 # # only when compiling
@@ -483,7 +483,7 @@ class Window(QDialog):
     #        if(box['checkEnable'].isChecked()):
     #            numBoxes += 1
     #    boundaryString = "boundaryBox "
-    #    staticString = "staticBoundaryBox " 
+    #    staticString = "staticBoundaryBox "
     #    flip = 1;
     #    for box in self.boundaryBoxes:
     #        if(box['checkEnable'].isChecked()):
@@ -655,7 +655,7 @@ class Window(QDialog):
                 targetColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'vx', 'vy', 'vz', 'ax',
                                         'ay', 'az', 'pointNum']
                 # TODO
-                pointColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'doppler', 'snr', 'range', 'azimuth', 'elevation']
+                pointColsPersistent = 'frame_id', 'target_id', 'elevation', 'azimuth', 'doppler', 'range', 'snr'
                 self.targetInfoPersistent = pd.DataFrame(columns=targetColsPersistent)
                 self.pointInfoPersistent = pd.DataFrame(columns=pointColsPersistent)
                 self.dataType = self.data2Type[type_text]
@@ -672,6 +672,8 @@ class Window(QDialog):
             commonFileName = name+ '_'+type_text+'_'+timestr+str(len(self.targetInfoPersistent))
             targetDataPath = os.path.join(self.saveDir, commonFileName+'_target.csv')
             pointDataPath = os.path.join(self.saveDir, commonFileName+'_point.csv')
+
+            # self.targetInfoPersistent['pname'] = name
 
             self.targetInfoPersistent.to_csv(
                 targetDataPath,
@@ -794,7 +796,7 @@ class Window(QDialog):
     def updateGraph(self, parsedData):
         updateStart = int(round(time.time() * 1000))
         self.useFilter = 0
-        pointCloud = parsedData[0]   #parsedData 是5*N的吗？ 5包含 range, azimuth, elevation, doppler, snr
+        pointCloud = parsedData[0]
         targets = parsedData[1]
         indexes = parsedData[2]
         numPoints = parsedData[3]
@@ -877,7 +879,7 @@ class Window(QDialog):
         fNum = self.frameNum % 10
         if (numPoints):
             self.previousCloud[:5, :numPoints, fNum] = pointCloud[:5, :numPoints]
-            self.previousCloud[5, :len(indexes), fNum] = indexes   # 这个indexes对应的是上一帧的 points 也就是说numPoints != len(indexes)  # ori
+            self.previousCloud[5, :len(indexes), fNum] = indexes   # 这个indexes对应的是上一帧的 points 也就是说numPoints != len(indexes)
             # print("!!!!!! previousCloud.size:", self.previousPointCount.size)
             # print("!!!!! numPoints:", numPoints)
             # print("!!!!! len(indexes): ", len(indexes))   # 如果targetNum = 0的话，len(indexes) = 0
@@ -899,7 +901,7 @@ class Window(QDialog):
                 prevCount = int(self.previousPointCount[fNum - i])
                 pointIn[:, totalPoints:totalPoints + prevCount] = self.previousCloud[:5, :prevCount, fNum - i]
                 if (numTargets > 0):
-                    indicesIn[0, totalPoints:totalPoints + prevCount] = self.previousCloud[5, :prevCount, fNum - i]  # ori
+                    indicesIn[0, totalPoints:totalPoints + prevCount] = self.previousCloud[5, :prevCount, fNum - i]
                 totalPoints += prevCount
         if (self.graphFin):
             self.plotstart = int(round(time.time() * 1000))
@@ -929,7 +931,6 @@ class Window(QDialog):
         # height plotting - only if 3D plot is good to go
         # first loop is instantaneous absolute height, relative height, length, and width
         if (self.configType.currentText() == '3D People Counting'):
-            # pointIn = self.previousCloud[:, :int(self.previousPointCount[fNum - 1]), fNum - 1]   # ori
             pointIn = self.previousCloud[:, :int(self.previousPointCount[fNum - 1]), fNum - 1]
         elif (self.configType.currentText() == 'Long Range People Detection'):
             pointIn = self.previousCloud[:, :int(self.previousPointCount[fNum]), fNum]
@@ -961,18 +962,15 @@ class Window(QDialog):
                 self.pointInfoPersistent.loc[self.pointInfoPersistent.index[-len(indexes)]:, 'target_id'] = indexes
 
             for i in range(numPoints):
-                # pointColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'doppler', 'snr']
-                pointColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'doppler', 'snr', 'range', 'azimuth', 'elevation']
+                pointColsPersistent = ['frame_id', 'target_id', 'elevation', 'azimuth', 'doppler', 'range', 'snr']
                 # line = [self.frameNum, int(targets[0, 0]), pointCloud[0, i], pointCloud[1, i], pointCloud[2, i],
                 #         pointCloud[3, i],
                 #         pointCloud[4, i]]
 
                 # 点对应的 target_id （indexes）要到下一帧才知道
-                # line = [self.frameNum, None, pointCloud[0, i], pointCloud[1, i], pointCloud[2, i],
-                #         pointCloud[3, i],
-                #         pointCloud[4, i]]
                 line = [self.frameNum, None, pointCloud[0, i], pointCloud[1, i], pointCloud[2, i],
-                        pointCloud[3, i],pointCloud[4, i], pointCloud[5,i],pointCloud[6,i],pointCloud[7,i]]
+                        pointCloud[3, i],
+                        pointCloud[4, i]]
                 pd_line = pd.DataFrame(data=[line, ], columns=pointColsPersistent)
                 self.pointInfoPersistent = self.pointInfoPersistent.append(pd_line).reset_index(drop=True)
 
@@ -992,11 +990,11 @@ class Window(QDialog):
         for t in range(numTargets):
             # 状态机 和 area的分配
             tid = int(targets[0, t])
-            if tid in self.machines:
-                machine = self.machines[tid]
-            else:
-                machine = StateDetectionMachine()
-                self.machines[tid] = machine
+            # if tid in self.machines:
+            #     machine = self.machines[tid]
+            # else:
+            #     machine = StateDetectionMachine()
+            #     self.machines[tid] = machine
 
             # 如果没有给他分配area,则分配
             if tid not in self.target_id_2_idx_of_area:
@@ -1012,25 +1010,25 @@ class Window(QDialog):
                     targets[4, t], targets[5, t], targets[6, t],
                     targets[7, t], targets[8, t], targets[9, t], 0]
             pd_line = pd.DataFrame(data=[line, ], columns=target_cols)
-            machine.insert_data(pd_line)
-            machine.process(self.frameNum, tid)
+            # machine.insert_data(pd_line)
+            # machine.process(self.frameNum, tid)
             my_area_id = self.target_id_2_idx_of_area[tid]
-            if machine.is_stand:
-                self.words[my_area_id].setText("stand")
-                self.pics[my_area_id].setPixmap(self.standingPicture)
-                self.twords[my_area_id].setText("目标" + str(tid))
-            elif machine.is_fall:
-                self.words[my_area_id].setText("fall")
-                self.pics[my_area_id].setPixmap(self.fallingPicture)
-                self.twords[my_area_id].setText("目标" + str(tid))
-            elif machine.is_sit:
-                self.words[my_area_id].setText("sit")
-                self.pics[my_area_id].setPixmap(self.sittingPicture)
-                self.twords[my_area_id].setText("目标" + str(tid))
-            elif machine.is_walk:
-                self.words[my_area_id].setText("walk")
-                self.pics[my_area_id].setPixmap(self.walkingPicture)
-                self.twords[my_area_id].setText("目标" + str(tid))
+            # if machine.is_stand:
+            #     self.words[my_area_id].setText("stand")
+            #     self.pics[my_area_id].setPixmap(self.standingPicture)
+            #     self.twords[my_area_id].setText("目标" + str(tid))
+            # elif machine.is_fall:
+            #     self.words[my_area_id].setText("fall")
+            #     self.pics[my_area_id].setPixmap(self.fallingPicture)
+            #     self.twords[my_area_id].setText("目标" + str(tid))
+            # elif machine.is_sit:
+            #     self.words[my_area_id].setText("sit")
+            #     self.pics[my_area_id].setPixmap(self.sittingPicture)
+            #     self.twords[my_area_id].setText("目标" + str(tid))
+            # elif machine.is_walk:
+            #     self.words[my_area_id].setText("walk")
+            #     self.pics[my_area_id].setPixmap(self.walkingPicture)
+            #     self.twords[my_area_id].setText("目标" + str(tid))
 
             # print("TID: ", tid)
             tIndices = np.where(np.array(indexes) == tid)
@@ -1155,8 +1153,8 @@ class Window(QDialog):
         try:
             # uart = "COM" + self.uartCom.text()  # deb_gp
             # data = "COM" + self.dataCom.text()  # deb_gp
-            uart = "/dev/tty.SLAB_USBtoUART"+self.uartCom.text()  # deb_gp
-            data = "/dev/tty.SLAB_USBtoUART"+self.dataCom.text()  # deb_gp
+            uart = self.uartCom.text()  # deb_gp
+            data = self.dataCom.text()  # deb_gp
             # TODO: find the serial ports automatically.
             self.parser.connectComPorts(uart, data)
             self.connectStatus.setText('Connected')  # deb_gp
@@ -1199,7 +1197,7 @@ class Window(QDialog):
         # user may not have correct directory, or OS scan may not find it
         try:
             # to do
-            configDirectory = root + toolbox + "/labs/people_counting/visualizer/chirp_configs/3D_People_Counting/"
+            configDirectory = root + toolbox + "/labs/people_counting/visualizer/chirp_configs/"
         except:
             configDirectory = root
 

@@ -29,7 +29,7 @@ from StateDetectionMachine import *
 compileGui = 0
 
 # 此处填写被测人的姓名
-name = 'zxl'
+name = 'lk'
 
 
 # # only when compiling
@@ -877,7 +877,7 @@ class Window(QDialog):
         fNum = self.frameNum % 10
         if (numPoints):
             self.previousCloud[:5, :numPoints, fNum] = pointCloud[:5, :numPoints]
-            self.previousCloud[5, :len(indexes), fNum] = indexes   # 这个indexes对应的是上一帧的 points 也就是说numPoints != len(indexes)  # ori
+            self.previousCloud[5, :len(indexes), fNum] = indexes   # 这个indexes对应的是上一帧的 points 也就是说numPoints != len(indexes)
             # print("!!!!!! previousCloud.size:", self.previousPointCount.size)
             # print("!!!!! numPoints:", numPoints)
             # print("!!!!! len(indexes): ", len(indexes))   # 如果targetNum = 0的话，len(indexes) = 0
@@ -899,7 +899,7 @@ class Window(QDialog):
                 prevCount = int(self.previousPointCount[fNum - i])
                 pointIn[:, totalPoints:totalPoints + prevCount] = self.previousCloud[:5, :prevCount, fNum - i]
                 if (numTargets > 0):
-                    indicesIn[0, totalPoints:totalPoints + prevCount] = self.previousCloud[5, :prevCount, fNum - i]  # ori
+                    indicesIn[0, totalPoints:totalPoints + prevCount] = self.previousCloud[5, :prevCount, fNum - i]
                 totalPoints += prevCount
         if (self.graphFin):
             self.plotstart = int(round(time.time() * 1000))
@@ -929,7 +929,6 @@ class Window(QDialog):
         # height plotting - only if 3D plot is good to go
         # first loop is instantaneous absolute height, relative height, length, and width
         if (self.configType.currentText() == '3D People Counting'):
-            # pointIn = self.previousCloud[:, :int(self.previousPointCount[fNum - 1]), fNum - 1]   # ori
             pointIn = self.previousCloud[:, :int(self.previousPointCount[fNum - 1]), fNum - 1]
         elif (self.configType.currentText() == 'Long Range People Detection'):
             pointIn = self.previousCloud[:, :int(self.previousPointCount[fNum]), fNum]
@@ -961,18 +960,16 @@ class Window(QDialog):
                 self.pointInfoPersistent.loc[self.pointInfoPersistent.index[-len(indexes)]:, 'target_id'] = indexes
 
             for i in range(numPoints):
-                # pointColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'doppler', 'snr']
-                pointColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'doppler', 'snr', 'range', 'azimuth', 'elevation']
+                pointColsPersistent = ['frame_id', 'target_id', 'pos_x', 'pos_y', 'pos_z', 'doppler', 'snr']
                 # line = [self.frameNum, int(targets[0, 0]), pointCloud[0, i], pointCloud[1, i], pointCloud[2, i],
                 #         pointCloud[3, i],
                 #         pointCloud[4, i]]
 
                 # 点对应的 target_id （indexes）要到下一帧才知道
-                # line = [self.frameNum, None, pointCloud[0, i], pointCloud[1, i], pointCloud[2, i],
-                #         pointCloud[3, i],
-                #         pointCloud[4, i]]
                 line = [self.frameNum, None, pointCloud[0, i], pointCloud[1, i], pointCloud[2, i],
-                        pointCloud[3, i],pointCloud[4, i], pointCloud[5,i],pointCloud[6,i],pointCloud[7,i]]
+                        pointCloud[3, i],
+                        pointCloud[4, i]]
+
                 pd_line = pd.DataFrame(data=[line, ], columns=pointColsPersistent)
                 self.pointInfoPersistent = self.pointInfoPersistent.append(pd_line).reset_index(drop=True)
 

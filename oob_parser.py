@@ -48,7 +48,8 @@ class uartParserSDK():
             self.aop = 1
         #data storage
         self.pcPolar = np.zeros((5,self.maxPoints))
-        self.pcBufPing = np.zeros((5,self.maxPoints))
+        # self.pcBufPing = np.zeros((5,self.maxPoints))   # ori
+        self.pcBufPing = np.zeros((8,self.maxPoints))
         self.numDetectedObj = 0
         self.targetBufPing = np.ones((10,20))*-1
         self.indexBufPing = np.zeros((1,self.maxPoints))
@@ -106,13 +107,18 @@ class uartParserSDK():
 
     #convert 3D people counting polar to 3D cartesian
     def polar2Cart3D(self):
-        self.pcBufPing = np.empty((5,self.numDetectedObj))
+        # self.pcBufPing = np.empty((5,self.numDetectedObj))     #  ori
+        self.pcBufPing = np.empty((8,self.numDetectedObj))
+
         for n in range(0, self.numDetectedObj):
             self.pcBufPing[2,n] = self.pcPolar[0,n]*math.sin(self.pcPolar[2,n]) #z
             self.pcBufPing[0,n] = self.pcPolar[0,n]*math.cos(self.pcPolar[2,n])*math.sin(self.pcPolar[1,n]) #x
             self.pcBufPing[1,n] = self.pcPolar[0,n]*math.cos(self.pcPolar[2,n])*math.cos(self.pcPolar[1,n]) #y
         self.pcBufPing[3,:] = self.pcPolar[3,0:self.numDetectedObj] #doppler
         self.pcBufPing[4,:] = self.pcPolar[4,0:self.numDetectedObj] #snr
+        self.pcBufPing[5,:] = self.pcPolar[0,0:self.numDetectedObj] # range 加
+        self.pcBufPing[6,:] = self.pcPolar[1,0:self.numDetectedObj] # azimuth 加
+        self.pcBufPing[7,:] = self.pcPolar[2,0:self.numDetectedObj] # elevation 加
         #print(self.pcBufPing[:,:10])
 
     #decode People Counting TLV Header
@@ -694,7 +700,8 @@ class uartParserSDK():
     #parsing for 3D People Counting lab
     def Capon3DHeader(self, dataIn):
         #reset point buffers
-        self.pcBufPing = np.zeros((5,self.maxPoints))
+        # self.pcBufPing = np.zeros((5, self.maxPoints))   # ori
+        self.pcBufPing = np.zeros((8,self.maxPoints))
         self.pcPolar = np.zeros((5,self.maxPoints))
         self.targetBufPing = np.zeros((13,20))
         self.numDetectedTarget = 0
