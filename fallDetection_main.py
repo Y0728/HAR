@@ -977,7 +977,7 @@ class Window(QDialog):
                 # line = [self.frameNum, None, pointCloud[0, i], pointCloud[1, i], pointCloud[2, i],
                 #         pointCloud[3, i],
                 #         pointCloud[4, i]]
-                line = [self.frameNum, None, pointCloud[0, i], pointCloud[1, i], pointCloud[2, i],
+                line = [self.frameNum, None, pointCloud[0, i], pointCloud[1, i], pointCloud[2, i]+self.sensorHeight,
                         pointCloud[3, i],pointCloud[4, i], pointCloud[5,i],pointCloud[6,i],pointCloud[7,i]]
                 pd_line = pd.DataFrame(data=[line, ], columns=pointColsPersistent)
                 self.pointInfoPersistent = self.pointInfoPersistent.append(pd_line).reset_index(drop=True)
